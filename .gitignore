@@ -1,4 +1,6 @@
-/.bsp/
-/.idea/
-/spark-warehouse/
+/project/
 /target/
+/spark-warehouse/
+/.idea/
+/.bsp/
+/src/test/
