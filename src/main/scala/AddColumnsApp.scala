@@ -1,7 +1,7 @@
 package stormshieldLogs
 
 
-object addColumnsApp{
+object AddColumnsApp{
 
   private var fullCols: Map[String, String] = Map("" -> "") // empty Map for use in UDF mapColumns
 
