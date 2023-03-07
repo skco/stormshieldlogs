@@ -20,7 +20,10 @@ object StormshieldLogsApp {
       val cleaner: Cleaner = new Cleaner(spark:SparkSession,storageDir:String)
 
       val logsDF   : Dataset[Row] = loader .loadStormshieldLogs (logDir, logType)
-      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(logsDF, logType, logDir,rebuildColumns)
+
+      val withoutAnomalies:Dataset[Row] = loader.filterAnomalyRows(logsDF)
+
+      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(withoutAnomalies, logType, logDir,rebuildColumns)
 
       cleanedDF.show()
 
