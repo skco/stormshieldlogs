@@ -17,7 +17,7 @@ class Loader(spark:SparkSession,storageDir:String) {
     //println(avgValue)
     val dfAboveAvg:Dataset[Row] = dfWithLen.where(s"len>${(avgValue*2).toString}")
     //dfAboveAvg.show(1000,false)
-    dfWithLen.where(dfWithLen("len")<avgValue)
+    dfWithLen.where("len<avgValue*2")
 
   }
 
