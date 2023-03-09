@@ -1,34 +1,53 @@
 package stormshieldLogs
 
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
+import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.apache.spark.sql.functions.udf
+
+/**
+ * main app settings object
+ */
+object StormshieldLogsAppSettings {
+  val logDir:     String = "E:/logsALL/"
+  val storageDir: String = "E:/logStore/"
+  val logType:    String = "monitor" //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
+  val rebuildColumns: Boolean = true
+
+  //gdzie tego nieszczesnego UDF upchnać?
+  val mapCols = (row: String, cols: Map[String, String]) => {         //udf function
+    val pattern: String = "[ =]+(?=(?:[^\"]*[\"][^\"]*[\"])*[^\"]*$)" // match ; and = outside double quotes ""
+    val pairs: Iterator[Array[String]] = row.split(pattern)
+                                            .grouped(2)               // split and group to (key, value)
+    cols ++ pairs.map { case Array(k, v) => k -> v }                  // insert values
+                 .toMap
+  }: Map[String, String]
+}
 
 object StormshieldLogsApp {
-
   def main(args: Array[String]): Unit = {
     val spark: SparkSession = SparkSession.builder()
-      .appName("StormShieldLogs")
-      .master("local[*]")
-      .getOrCreate()
+                                          .appName("StormShieldLogs")
+                                          .master("local[*]")
+                                          .getOrCreate()
 
-      val logDir: String     = "E:/logsALL/"
-      val storageDir: String = "E:/logStore/"
-      val logType: String    = "monitor"     //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
+      val mapColUDF: UserDefinedFunction = udf(StormshieldLogsAppSettings.mapCols)
+      spark.udf.register("mapColUDF", mapColUDF)
 
-      val rebuildColumns = false
+      val loader : Loader  = new Loader (spark:SparkSession,StormshieldLogsAppSettings.storageDir:String)
+      val cleaner: Cleaner = new Cleaner(spark:SparkSession,StormshieldLogsAppSettings.storageDir:String)
 
-      val loader : Loader  = new Loader (spark:SparkSession,storageDir:String)
-      val cleaner: Cleaner = new Cleaner(spark:SparkSession,storageDir:String)
+      val logsDF           : Dataset[Row] = loader.loadStormshieldLogs(StormshieldLogsAppSettings.logDir, StormshieldLogsAppSettings.logType)
+      val withoutAnomalies : Dataset[Row] = loader.filterAnomalyRows(logsDF)
 
-      val logsDF   : Dataset[Row] = loader .loadStormshieldLogs (logDir, logType)
-
-      val withoutAnomalies:Dataset[Row] = loader.filterAnomalyRows(logsDF)
-
-      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(withoutAnomalies, logType, logDir,rebuildColumns)
-
+      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(withoutAnomalies, StormshieldLogsAppSettings.logType, StormshieldLogsAppSettings.logDir,StormshieldLogsAppSettings.rebuildColumns)
       cleanedDF.show()
 
-      //val usersCount: Int = cleanedDF.select("user").distinct().count().toInt
-      //cleanedDF.select("user").distinct().sort("user").show(usersCount, false)
+
+      cleanedDF.show(false)
+      cleanedDF.write
+               .parquet(StormshieldLogsAppSettings.storageDir+StormshieldLogsAppSettings.logType+".parquet")
+     // val usersCount: Int = cleanedDF.select("user").distinct().count().toInt
+     // cleanedDF.select("user").distinct().sort("user").show(usersCount, false)
   }
 }
 
