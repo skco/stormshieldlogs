@@ -10,16 +10,19 @@ import org.apache.spark.sql.functions.udf
 object StormshieldLogsAppSettings {
   val logDir:     String = "E:/logsALL/"
   val storageDir: String = "E:/logStore/"
-  val logType:    String = "monitor" //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
+  val logType:    String = "monitor"     //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
   val rebuildColumns: Boolean = true
+}
 
-  //gdzie tego nieszczesnego UDF upchnać?
-  val mapCols = (row: String, cols: Map[String, String]) => {         //udf function
+
+object CustomUDFs {
+  val mapCols = (row: String, cols: Map[String, String]) => { //udf function
     val pattern: String = "[ =]+(?=(?:[^\"]*[\"][^\"]*[\"])*[^\"]*$)" // match ; and = outside double quotes ""
     val pairs: Iterator[Array[String]] = row.split(pattern)
-                                            .grouped(2)               // split and group to (key, value)
-    cols ++ pairs.map { case Array(k, v) => k -> v }                  // insert values
-                 .toMap
+      .grouped(2) // split and group to (key, value)
+
+       cols ++ pairs.map { case Array(k, v) => k -> v } // insert values
+      .toMap
   }: Map[String, String]
 }
 
@@ -30,7 +33,7 @@ object StormshieldLogsApp {
                                           .master("local[*]")
                                           .getOrCreate()
 
-      val mapColUDF: UserDefinedFunction = udf(StormshieldLogsAppSettings.mapCols)
+      val mapColUDF: UserDefinedFunction = udf(CustomUDFs.mapCols)
       spark.udf.register("mapColUDF", mapColUDF)
 
       val loader : Loader  = new Loader (spark:SparkSession,StormshieldLogsAppSettings.storageDir:String)
@@ -39,9 +42,8 @@ object StormshieldLogsApp {
       val logsDF           : Dataset[Row] = loader.loadStormshieldLogs(StormshieldLogsAppSettings.logDir, StormshieldLogsAppSettings.logType)
       val withoutAnomalies : Dataset[Row] = loader.filterAnomalyRows(logsDF)
 
-      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(withoutAnomalies, StormshieldLogsAppSettings.logType, StormshieldLogsAppSettings.logDir,StormshieldLogsAppSettings.rebuildColumns)
+      val cleanedDF: Dataset[Row] = cleaner.cleanStormshieldLogs(withoutAnomalies,StormshieldLogsAppSettings.logType,StormshieldLogsAppSettings.logDir,StormshieldLogsAppSettings.rebuildColumns)
       cleanedDF.show()
-
 
       cleanedDF.show(false)
       cleanedDF.write

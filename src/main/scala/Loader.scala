@@ -18,19 +18,18 @@ class Loader(spark:SparkSession,storageDir:String) {
   }
 
   /**
-  * Remove rows with anomaly rows length
+  * Remove rows with anomaly length
   *
-  * @param df          raw text DataFrame (lines as strings)
+  * @param DF          raw text DataFrame (lines as string)
   * @return            DataFrame without rows longer 2x average line length
    */
 
-  def filterAnomalyRows(df:Dataset[Row]):Dataset[Row] = {
-    val dfWithLen:Dataset[Row] = df.withColumn("len",length(col("value")))
+  def filterAnomalyRows(DF:Dataset[Row]):Dataset[Row] = {
+    val dfWithLen:Dataset[Row] = DF.withColumn("len",length(col("value")))
     val avgValue :Float        = dfWithLen.select(avg("len"))
                                           .collect()(0)(0)
                                           .toString
                                           .toFloat
-
     dfWithLen.where(dfWithLen("len")<avgValue*2)
              .drop("len")
   }

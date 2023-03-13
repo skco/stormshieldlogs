@@ -1,11 +1,9 @@
 package stormshieldLogs
 
-import org.apache.hadoop.shaded.org.eclipse.jetty.websocket.common.frames.DataFrame
 import org.apache.spark.sql.{Column, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions.regexp_replace
 import org.apache.spark.sql.functions.{call_udf, col}
-import org.apache.spark.sql.expressions.UserDefinedFunction
 
 import java.nio.file.{Files, Paths}
 
@@ -14,11 +12,11 @@ class Cleaner(spark: SparkSession,storageDir:String) {
   /**
    * Save column names to text file
    *
-   * @param df       DatafFame with extracted column names
+   * @param DF       DataFrame with extracted column names
    * @param logType  name of log file
    */
-  private def saveUniqueCols(df: Dataset[Row], logType: String): Unit = {
-    df.write.mode("overwrite").text(s"$storageDir$logType.txt")
+  private def saveUniqueCols(DF: Dataset[Row], logType: String): Unit = {
+    DF.write.mode("overwrite").text(s"$storageDir$logType.txt")
   }
 
   /**
@@ -35,7 +33,7 @@ class Cleaner(spark: SparkSession,storageDir:String) {
   /**
    * convert DatafFame with column names to  Map[String,String]
    *
-   * @param colDF    dataframe with unique column names stored in "value" column
+   * @param colDF    DataFrame with unique column names stored in "value" column
    * @return         Map[ColName,"NULL"] as type Map[String,String]
    */
   private def convertToMap(colDF: Dataset[Row]): Map[String, String] = {
@@ -49,12 +47,12 @@ class Cleaner(spark: SparkSession,storageDir:String) {
   /**
    * get unique column names from DataFrame with text format like "ColName1=value1 ColName2=value2"
    *
-   * @param df               DataFrame with raw text format
+   * @param DF               DataFrame with raw text format
    * @return                 DataFrame with unique column names stored in "value" column
    */
-  private def getUniqueCols(df: Dataset[Row]): Dataset[Row]= {
+  private def getUniqueCols(DF: Dataset[Row]): Dataset[Row]= {
     import spark.implicits._
-    df
+    DF
       .withColumn("value", regexp_replace(col("value"), "\"(.*?)\"", ""))
       .withColumn("value", regexp_replace(col("value"), "(?<==).*?(?=( ([a-z])|$| ))", ""))
       .withColumn("value", regexp_replace(col("value"), "=", ""))
@@ -68,13 +66,13 @@ class Cleaner(spark: SparkSession,storageDir:String) {
   /**
    * create dataframe with multiple columns from rows with Map[String,String] (colname, value)
    *
-   * @param df  DataFrame with column "value" contains Map[String,String]  (colname, value)
+   * @param DF  DataFrame with column "value" contains Map[String,String]  (colname, value)
    * @return    DataFrame with multiple columns extracted
    */
-  private def convertMapToColumns(df: Dataset[Row]): Dataset[Row] = {
+  private def convertMapToColumns(DF: Dataset[Row]): Dataset[Row] = {
       //extract column with Map (key, value ...) to dataframe
       import spark.implicits._
-      val keysDF: Dataset[Row] = df.select(explode(map_keys($"value")))
+      val keysDF: Dataset[Row] = DF.select(explode(map_keys($"value")))
         .distinct() // extract keys to DF
 
       val keys: Array[Any] = keysDF.collect()
@@ -84,24 +82,24 @@ class Cleaner(spark: SparkSession,storageDir:String) {
         .getItem(f)
         .as(f.toString)) // create Array of columns from Map
 
-      df.select(col("value") +: keyCols: _*)
+      DF.select(col("value") +: keyCols: _*)
         .drop("value") // create new columns and drop old
   }
 
   /**
    * main cleaning function
    *
-   * @param df              DataFrame raw text format
+   * @param DF              DataFrame raw text format
    * @param logType         log type directory
    * @param logDir          main log store directory
-   * @param rebuildColumns  force recalculating column
+   * @param rebuildColumns  force  column recalculating
    * @return                Cleaned DataFrame
    */
 
-  def cleanStormshieldLogs(df: Dataset[Row], logType: String, logDir: String, rebuildColumns: Boolean): Dataset[Row] = {
+  def cleanStormshieldLogs(DF: Dataset[Row], logType: String, logDir: String, rebuildColumns: Boolean): Dataset[Row] = {
 
     val colsDF:Dataset[Row] =  if (!Files.exists(Paths.get(s"$logDir$logType.txt")) | rebuildColumns) {
-      val colsTmp: Dataset[Row] = getUniqueCols(df) // get list of all possible columns for logType
+      val colsTmp: Dataset[Row] = getUniqueCols(DF) // get list of all possible columns for logType
       saveUniqueCols(colsTmp,logType) // save to parquet
       colsTmp
     }
@@ -110,10 +108,9 @@ class Cleaner(spark: SparkSession,storageDir:String) {
     }
 
     val fullCols:Map[String,String] = convertToMap(colsDF)
-    val result: Dataset[Row] = df.withColumn("value", call_udf("mapColUDF", col("value"), typedLit(fullCols)))
+    val result: Dataset[Row] = DF.withColumn("value", call_udf("mapColUDF", col("value"), typedLit(fullCols)))
 
     convertMapToColumns(result)
 
   }
 }
-
