@@ -64,7 +64,7 @@ class Cleaner(spark: SparkSession,storageDir:String) {
   }
 
   /**
-   * create dataframe with multiple columns from rows with Map[String,String] (colname, value)
+   * create DataFrame with multiple columns from rows with Map[String,String] (colname, value)
    *
    * @param DF  DataFrame with column "value" contains Map[String,String]  (colname, value)
    * @return    DataFrame with multiple columns extracted
