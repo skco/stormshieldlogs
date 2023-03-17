@@ -1,5 +1,3 @@
-package stormshieldLogs
-
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions.udf
@@ -10,7 +8,7 @@ import org.apache.spark.sql.functions.udf
 object StormshieldLogsAppSettings {
   val logDir:     String = "E:/logsALL/"
   val storageDir: String = "E:/logStore/"
-  val logType:    String = "monitor"     //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
+  val logType:    String = "auth"     //"alarm", "auth", "connections", "filterstat", "plugin", "system", "web" available log types
   val rebuildColumns: Boolean = true
 }
 
@@ -47,6 +45,7 @@ object StormshieldLogsApp {
 
       cleanedDF.show(false)
       cleanedDF.write
+               .mode("overwrite")
                .parquet(StormshieldLogsAppSettings.storageDir+StormshieldLogsAppSettings.logType+".parquet")
      // val usersCount: Int = cleanedDF.select("user").distinct().count().toInt
      // cleanedDF.select("user").distinct().sort("user").show(usersCount, false)

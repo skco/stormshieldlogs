@@ -1,5 +1,3 @@
-package stormshieldLogs
-
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 

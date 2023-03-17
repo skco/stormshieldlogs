@@ -1,5 +1,3 @@
-package stormshieldLogs
-
 import org.apache.spark.sql.{Column, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions.regexp_replace
