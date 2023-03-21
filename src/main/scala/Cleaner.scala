@@ -25,7 +25,6 @@ class Cleaner(spark: SparkSession,storageDir:String) {
    */
   private def readColsFromFile(logType: String):Dataset[Row]= {
    spark.read.text(s"$storageDir$logType.txt")
-
   }
 
   /**
@@ -95,20 +94,19 @@ class Cleaner(spark: SparkSession,storageDir:String) {
    */
 
   def cleanStormshieldLogs(DF: Dataset[Row], logType: String, logDir: String, rebuildColumns: Boolean): Dataset[Row] = {
+      val colsDF:Dataset[Row] =  if (!Files.exists(Paths.get(s"$logDir$logType.txt")) | rebuildColumns) {
+        val colsTmp: Dataset[Row] = getUniqueCols(DF) // get list of all possible columns for logType
+        saveUniqueCols(colsTmp,logType) // save to parquet
+        colsTmp
+      }
+      else {
+        readColsFromFile(logType) // read cached columns
+      }
 
-    val colsDF:Dataset[Row] =  if (!Files.exists(Paths.get(s"$logDir$logType.txt")) | rebuildColumns) {
-      val colsTmp: Dataset[Row] = getUniqueCols(DF) // get list of all possible columns for logType
-      saveUniqueCols(colsTmp,logType) // save to parquet
-      colsTmp
+      val fullCols:Map[String,String] = convertToMap(colsDF)
+      val result: Dataset[Row] = DF.withColumn("value", call_udf("mapColUDF", col("value"), typedLit(fullCols)))
+
+      convertMapToColumns(result)
+
     }
-    else {
-      readColsFromFile(logType)                   // read cached columns
-    }
-
-    val fullCols:Map[String,String] = convertToMap(colsDF)
-    val result: Dataset[Row] = DF.withColumn("value", call_udf("mapColUDF", col("value"), typedLit(fullCols)))
-
-    convertMapToColumns(result)
-
-  }
 }
