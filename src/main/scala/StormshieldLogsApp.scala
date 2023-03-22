@@ -14,7 +14,7 @@ object StormshieldLogsApp {
       val mapColUDF: UserDefinedFunction = udf(CustomUDFs.mapCols)
       spark.udf.register("mapColUDF", mapColUDF)
 
-      val loader : Loader  = new Loader (spark:SparkSession,StormshieldLogsAppSettings.storageDir:String)
+      val loader : Loader  = new Loader (spark:SparkSession)
       val cleaner: Cleaner = new Cleaner(spark:SparkSession,StormshieldLogsAppSettings.storageDir:String)
 
       val logsDF           : Dataset[Row] = loader.loadStormshieldLogs(StormshieldLogsAppSettings.logsDir, logType)
@@ -27,6 +27,7 @@ object StormshieldLogsApp {
       cleanedDF.write
                .mode("overwrite")
                .parquet(StormshieldLogsAppSettings.storageDir+logType+".parquet")
+
      // val usersCount: Int = cleanedDF.select("user").distinct().count().toInt
      // cleanedDF.select("user").distinct().sort("user").show(usersCount, false)
   }

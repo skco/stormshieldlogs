@@ -1,7 +1,7 @@
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
-class Loader(spark:SparkSession,storageDir:String) {
+class Loader(spark:SparkSession) {
   /**
    * load StormShield devices log files
    *
